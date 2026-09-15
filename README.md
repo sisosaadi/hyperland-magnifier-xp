@@ -1,3 +1,5 @@
+THIS ENTIRE APP IS DONT USING CLAUDE I HAVE 0 CODING SKILLS
+
 # hypr-xp-magnifier — phase 4
 
 Two programs, in one project:
