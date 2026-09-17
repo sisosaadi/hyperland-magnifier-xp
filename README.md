@@ -1,3 +1,4 @@
+# THIS PROJECT WAS ENTIRELY VIBE CODED SO PLEASE EVERYONE HELP ME IMPROVE IT
 # hypr-xp-magnifier
 
 A docked screen magnifier for Hyprland, modeled on the Magnifier built into
