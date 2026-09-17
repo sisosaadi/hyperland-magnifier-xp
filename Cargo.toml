@@ -2,6 +2,8 @@
 name = "hypr-xp-magnifier"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "Docked screen magnifier in the style of Windows XP's Magnifier"
 
 [dependencies]
 smithay-client-toolkit = "0.21"

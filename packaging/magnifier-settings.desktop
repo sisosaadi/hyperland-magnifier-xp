@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=XP Magnifier Settings
+GenericName=Magnifier Settings
+Comment=Adjust zoom, size, position and refresh rate of the XP Magnifier
+Exec=magnifier-settings
+Icon=preferences-desktop
+Terminal=false
+Categories=Utility;Accessibility;Settings;
+Keywords=magnifier;zoom;settings;accessibility;
+StartupNotify=true

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=XP Magnifier
+GenericName=Screen Magnifier
+Comment=Docked screen magnifier in the style of Windows XP's Magnifier
+Exec=hypr-xp-magnifier
+Icon=zoom-in
+Terminal=false
+Categories=Utility;Accessibility;
+Keywords=magnifier;zoom;accessibility;low vision;
+StartupNotify=false

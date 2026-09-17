@@ -1,0 +1,48 @@
+# PKGBUILD for Arch Linux — this is the one you can actually test today,
+# since you're on Arch.
+#
+# Build and install:
+#     cd packaging
+#     makepkg -si
+#
+# makepkg expects the sources next to it, so this builds from the parent
+# directory rather than downloading a tarball. That's the "local sources"
+# style — fine for a personal package, not suitable for the AUR as-is.
+
+pkgname=hypr-xp-magnifier
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Docked screen magnifier in the style of Windows XP's Magnifier"
+arch=('x86_64' 'aarch64')
+url="https://github.com/yourname/hypr-xp-magnifier"
+license=('MIT')
+depends=('wayland' 'libxkbcommon' 'libglvnd' 'dbus' 'fontconfig')
+optdepends=('at-spi2-core: follow keyboard focus')
+makedepends=('cargo' 'pkgconf')
+# Works on any wlr-layer-shell + wlr-screencopy compositor; the cursor and
+# focused-window lookups use Hyprland's IPC socket specifically.
+options=('!lto')
+
+prepare() {
+    cd "$startdir/.."
+    export RUSTUP_TOOLCHAIN=stable
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')" || cargo fetch
+}
+
+build() {
+    cd "$startdir/.."
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR=target
+    cargo build --release
+}
+
+package() {
+    cd "$startdir"
+    make install DESTDIR="$pkgdir" PREFIX=/usr
+
+    # Arch convention puts licenses here; harmless if the file is absent.
+    if [ -f "$startdir/../LICENSE" ]; then
+        install -Dm644 "$startdir/../LICENSE" \
+            "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    fi
+}
