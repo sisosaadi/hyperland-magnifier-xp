@@ -4,6 +4,10 @@
 A docked screen magnifier for Hyprland, modeled on the Magnifier built into
 Windows XP.
 
+
+https://github.com/user-attachments/assets/b5c8b010-5d80-488d-9ddb-51201a22e6be
+
+
 It pins a magnified strip to one edge of your screen and pushes your other
 windows out of the way, rather than floating on top of them. The strip
 shows a live, zoomed view of whatever is under your mouse cursor — and
