@@ -27,7 +27,7 @@ optionally, of whatever has keyboard focus.
   text field and the view moves with you, via the Linux accessibility bus.
 - **Live settings** — a small GUI adjusts zoom, size, position and refresh
   rate while the magnifier is running. No restart.
-- **Multi-monitor aware** — clamps to the output the cursor is on.
+- **Single-output capture** — the bar stays on one output and clamps the capture region to that output; moving the cursor to another monitor does not switch the bar to it.
 
 ## Requirements
 

@@ -30,6 +30,10 @@ fn default_thickness() -> u32 {
     200
 }
 
+fn default_focus_y_correction() -> i32 {
+    40
+}
+
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 struct Settings {
     zoom_factor: f64,
@@ -41,7 +45,7 @@ struct Settings {
     position: DockPosition,
     #[serde(default)]
     follow_keypress: bool,
-    #[serde(default)]
+    #[serde(default = "default_focus_y_correction")]
     focus_y_correction: i32,
 }
 
@@ -69,10 +73,44 @@ fn config_path() -> PathBuf {
     base.join("hypr-xp-magnifier").join("settings.json")
 }
 
+impl Settings {
+    fn sanitized(mut self) -> Self {
+        let defaults = Self::default();
+        self.zoom_factor = if self.zoom_factor.is_finite() {
+            self.zoom_factor.clamp(1.0, 6.0)
+        } else {
+            defaults.zoom_factor
+        };
+        self.thickness = self.thickness.clamp(40, 800);
+        self.refresh_rate_hz = if self.refresh_rate_hz.is_finite() {
+            self.refresh_rate_hz.clamp(10.0, 165.0)
+        } else {
+            defaults.refresh_rate_hz
+        };
+        self.sharpness = if self.sharpness.is_finite() {
+            self.sharpness.clamp(0.0, 1.0)
+        } else {
+            defaults.sharpness
+        };
+        self.focus_y_correction = self.focus_y_correction.clamp(-100, 100);
+        self
+    }
+}
+
 fn load_settings() -> Settings {
     match std::fs::read_to_string(config_path()) {
-        Ok(text) => serde_json::from_str(&text).unwrap_or_default(),
-        Err(_) => Settings::default(),
+        Ok(text) => match serde_json::from_str::<Settings>(&text) {
+            Ok(settings) => settings.sanitized(),
+            Err(err) => {
+                eprintln!("Invalid magnifier settings; using defaults: {err}");
+                Settings::default()
+            }
+        },
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Settings::default(),
+        Err(err) => {
+            eprintln!("Could not read magnifier settings; using defaults: {err}");
+            Settings::default()
+        }
     }
 }
 
@@ -81,8 +119,11 @@ fn save_settings(settings: &Settings) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let text = serde_json::to_string_pretty(settings).unwrap_or_default();
-    std::fs::write(path, text)
+    let text = serde_json::to_string_pretty(&settings.clone().sanitized())?;
+    // Write to a temporary file first, then atomically replace settings.json.
+    let temporary = path.with_extension("json.tmp");
+    std::fs::write(&temporary, text)?;
+    std::fs::rename(temporary, path)
 }
 
 fn main() -> eframe::Result<()> {

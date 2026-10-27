@@ -129,6 +129,10 @@ fn default_thickness() -> u32 {
     200
 }
 
+fn default_focus_y_correction() -> i32 {
+    40
+}
+
 /// Live-adjustable settings, shared with the `magnifier-settings` GUI via a
 /// small JSON file on disk.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -155,7 +159,7 @@ struct Settings {
     /// coordinates don't include their own title bar height, which
     /// Hyprland's window bounds do — shows up as focus-follow consistently
     /// landing on the wrong row by a fixed amount. Tune by eye.
-    #[serde(default)]
+    #[serde(default = "default_focus_y_correction")]
     focus_y_correction: i32,
 }
 
@@ -183,10 +187,47 @@ fn config_path() -> PathBuf {
     base.join("hypr-xp-magnifier").join("settings.json")
 }
 
+impl Settings {
+    /// Keep hand-edited settings within the same safe ranges as the GUI.
+    /// Also reject non-finite floats, which otherwise make calculations and
+    /// frame pacing behave unpredictably.
+    fn sanitized(mut self) -> Self {
+        let defaults = Self::default();
+        self.zoom_factor = if self.zoom_factor.is_finite() {
+            self.zoom_factor.clamp(1.0, 6.0)
+        } else {
+            defaults.zoom_factor
+        };
+        self.thickness = self.thickness.clamp(40, 800);
+        self.refresh_rate_hz = if self.refresh_rate_hz.is_finite() {
+            self.refresh_rate_hz.clamp(10.0, 165.0)
+        } else {
+            defaults.refresh_rate_hz
+        };
+        self.sharpness = if self.sharpness.is_finite() {
+            self.sharpness.clamp(0.0, 1.0)
+        } else {
+            defaults.sharpness
+        };
+        self.focus_y_correction = self.focus_y_correction.clamp(-100, 100);
+        self
+    }
+}
+
 fn load_settings() -> Settings {
     match std::fs::read_to_string(config_path()) {
-        Ok(text) => serde_json::from_str(&text).unwrap_or_default(),
-        Err(_) => Settings::default(),
+        Ok(text) => match serde_json::from_str::<Settings>(&text) {
+            Ok(settings) => settings.sanitized(),
+            Err(err) => {
+                eprintln!("Invalid magnifier settings; using defaults: {err}");
+                Settings::default()
+            }
+        },
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Settings::default(),
+        Err(err) => {
+            eprintln!("Could not read magnifier settings; using defaults: {err}");
+            Settings::default()
+        }
     }
 }
 
@@ -195,8 +236,12 @@ fn save_settings(settings: &Settings) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let text = serde_json::to_string_pretty(settings).unwrap_or_default();
-    std::fs::write(path, text)
+    let text = serde_json::to_string_pretty(&settings.clone().sanitized())?;
+    // Publish a complete JSON document atomically so the polling process
+    // never observes a partially-written settings file.
+    let temporary = path.with_extension("json.tmp");
+    std::fs::write(&temporary, text)?;
+    std::fs::rename(temporary, path)
 }
 
 /// Reads `--height N` from the command line, if present. This only sets the
@@ -407,9 +452,14 @@ fn query_cursor_pos(socket_path: &std::path::Path) -> Option<(i32, i32)> {
 }
 
 fn parse_cursor_pos(response: &str) -> Option<(i32, i32)> {
-    let mut parts = response.trim().splitn(2, ',');
+    let mut parts = response.trim().split(',');
     let x: i32 = parts.next()?.trim().parse().ok()?;
     let y: i32 = parts.next()?.trim().parse().ok()?;
+    // Reject malformed responses with extra coordinates rather than silently
+    // accepting a truncated or unexpected IPC reply.
+    if parts.next().is_some() {
+        return None;
+    }
     Some((x, y))
 }
 
@@ -1150,3 +1200,58 @@ impl ProvidesRegistryState for Magnifier {
 }
 
 smithay_client_toolkit::delegate_dispatch2!(Magnifier);
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_valid_cursor_positions() {
+        assert_eq!(parse_cursor_pos("12,34"), Some((12, 34)));
+        assert_eq!(parse_cursor_pos(" -1920, 1080\n"), Some((-1920, 1080)));
+    }
+
+    #[test]
+    fn rejects_malformed_cursor_positions() {
+        for input in ["", "1", "x,2", "1,y", "1,2,3", "2147483648,0"] {
+            assert_eq!(parse_cursor_pos(input), None, "input: {input:?}");
+        }
+    }
+
+    #[test]
+    fn sanitizes_settings_from_disk() {
+        let settings = Settings {
+            zoom_factor: 99.0,
+            thickness: 0,
+            refresh_rate_hz: 0.0,
+            sharpness: -4.0,
+            position: DockPosition::Top,
+            follow_keypress: false,
+            focus_y_correction: 999,
+        }.sanitized();
+
+        assert_eq!(settings.zoom_factor, 6.0);
+        assert_eq!(settings.thickness, 40);
+        assert_eq!(settings.refresh_rate_hz, 10.0);
+        assert_eq!(settings.sharpness, 0.0);
+        assert_eq!(settings.focus_y_correction, 100);
+    }
+
+    #[test]
+    fn replaces_non_finite_settings_with_defaults() {
+        let settings = Settings {
+            zoom_factor: f64::NAN,
+            thickness: 200,
+            refresh_rate_hz: f64::INFINITY,
+            sharpness: f64::NEG_INFINITY,
+            position: DockPosition::Top,
+            follow_keypress: false,
+            focus_y_correction: 0,
+        }.sanitized();
+
+        assert_eq!(settings.zoom_factor, Settings::default().zoom_factor);
+        assert_eq!(settings.refresh_rate_hz, Settings::default().refresh_rate_hz);
+        assert_eq!(settings.sharpness, Settings::default().sharpness);
+    }
+}
