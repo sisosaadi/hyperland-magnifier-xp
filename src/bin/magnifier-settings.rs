@@ -30,6 +30,10 @@ fn default_thickness() -> u32 {
     200
 }
 
+fn default_focus_y_correction() -> i32 {
+    40
+}
+
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 struct Settings {
     zoom_factor: f64,
@@ -41,7 +45,7 @@ struct Settings {
     position: DockPosition,
     #[serde(default)]
     follow_keypress: bool,
-    #[serde(default)]
+    #[serde(default = "default_focus_y_correction")]
     focus_y_correction: i32,
 }
 
