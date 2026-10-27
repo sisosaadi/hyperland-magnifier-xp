@@ -129,6 +129,10 @@ fn default_thickness() -> u32 {
     200
 }
 
+fn default_focus_y_correction() -> i32 {
+    40
+}
+
 /// Live-adjustable settings, shared with the `magnifier-settings` GUI via a
 /// small JSON file on disk.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -155,7 +159,7 @@ struct Settings {
     /// coordinates don't include their own title bar height, which
     /// Hyprland's window bounds do — shows up as focus-follow consistently
     /// landing on the wrong row by a fixed amount. Tune by eye.
-    #[serde(default)]
+    #[serde(default = "default_focus_y_correction")]
     focus_y_correction: i32,
 }
 
