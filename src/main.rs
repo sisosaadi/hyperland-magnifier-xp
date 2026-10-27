@@ -1209,7 +1209,7 @@ mod tests {
     #[test]
     fn parses_valid_cursor_positions() {
         assert_eq!(parse_cursor_pos("12,34"), Some((12, 34)));
-        assert_eq!(parse_cursor_pos(" -1920, 1080\\n"), Some((-1920, 1080)));
+        assert_eq!(parse_cursor_pos(" -1920, 1080\n"), Some((-1920, 1080)));
     }
 
     #[test]
